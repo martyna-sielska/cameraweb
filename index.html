@@ -1,0 +1,648 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <title>✦ vintacam ✦</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Caveat:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+    html, body { height:100%; touch-action:manipulation; overflow:hidden; }
+
+    body {
+      background: #ede8df;
+      font-family: 'Caveat', cursive;
+      color: #221c14;
+      display: flex;
+      justify-content: center;
+    }
+
+    /* ── app shell ──────────────────────────────────────────────────── */
+    .app {
+      width: 100%;
+      max-width: 430px;
+      height: 100dvh;
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+      background: #ede8df;
+      position: relative;
+      overflow: hidden;
+    }
+
+    /* ── scattered doodles ──────────────────────────────────────────── */
+    .deco {
+      position: absolute;
+      pointer-events: none;
+      z-index: 0;
+      color: #221c14;
+      font-size: 20px;
+      opacity: .18;
+      user-select: none;
+    }
+
+    /* ── header ─────────────────────────────────────────────────────── */
+    header {
+      flex-shrink: 0;
+      text-align: center;
+      padding: 14px 16px 6px;
+      position: relative;
+      z-index: 1;
+    }
+    .site-title {
+      font-size: 30px;
+      font-weight: 700;
+      letter-spacing: .5px;
+      line-height: 1;
+    }
+    .site-sub {
+      font-size: 15px;
+      color: #7a6e60;
+      margin-top: 2px;
+    }
+
+    /* ── mode tabs ──────────────────────────────────────────────────── */
+    .tabs {
+      display: flex;
+      justify-content: center;
+      gap: 8px;
+      padding: 6px 20px 4px;
+      flex-shrink: 0;
+      position: relative;
+      z-index: 1;
+    }
+    .tab {
+      font-family: 'Caveat', cursive;
+      font-size: 17px;
+      background: transparent;
+      border: 2px solid #c2b8a8;
+      color: #7a6e60;
+      padding: 3px 18px;
+      border-radius: 20px;
+      cursor: pointer;
+      transition: all .18s;
+    }
+    .tab.on {
+      background: #221c14;
+      border-color: #221c14;
+      color: #ede8df;
+    }
+
+
+    /* ── viewfinder ─────────────────────────────────────────────────── */
+    .vf-wrap {
+      flex: 1;
+      min-height: 0;
+      margin: 0 14px;
+      position: relative;
+      z-index: 1;
+    }
+    .vf-box {
+      position: relative;
+      width: 100%;
+      height: 100%;
+      background: #111;
+      border-radius: 14px;
+      overflow: hidden;
+      border: 3px solid #221c14;
+      box-shadow: 4px 4px 0 #c2b8a8, 7px 7px 0 #d4cabb;
+    }
+
+    /* paper corners */
+    .vf-box::before, .vf-box::after {
+      content: '';
+      position: absolute;
+      width: 22px; height: 22px;
+      border-color: #faf6ef;
+      border-style: solid;
+      z-index: 5;
+      pointer-events: none;
+    }
+    .vf-box::before { top: 6px; left: 6px; border-width: 2px 0 0 2px; border-radius: 3px 0 0 0; }
+    .vf-box::after  { bottom: 6px; right: 6px; border-width: 0 2px 2px 0; border-radius: 0 0 3px 0; }
+
+    #live-vid {
+      position: absolute; inset: 0;
+      width: 100%; height: 100%;
+      object-fit: cover;
+      filter: sepia(.14) saturate(1.22) contrast(.97) brightness(1.05) hue-rotate(10deg);
+    }
+    #live-vid.mirror { transform: scaleX(-1); }
+
+    #import-canvas, #import-vid {
+      position: absolute; inset: 0; width: 100%; height: 100%;
+      object-fit: contain; display: none; background: #000;
+    }
+
+    /* film overlays */
+    .vig  { position: absolute; inset: 0; pointer-events: none;
+            background: radial-gradient(ellipse at 50% 50%, transparent 50%, rgba(0,0,0,.46) 100%); }
+    .leak { position: absolute; inset: 0; pointer-events: none;
+            background: radial-gradient(ellipse at 4% 4%, rgba(255,200,80,.1), transparent 55%); }
+    #grain { position: absolute; inset: 0; width: 100%; height: 100%;
+             pointer-events: none; opacity: .065; mix-blend-mode: overlay; }
+
+    #stamp {
+      position: absolute; bottom: 10px; right: 10px;
+      font-family: 'Courier New', monospace;
+      font-size: clamp(10px, 2.6vw, 14px);
+      font-weight: bold; letter-spacing: .5px; line-height: 1.5;
+      color: #f5a623;
+      text-shadow: 0 0 5px rgba(245,166,35,.65), 1px 1px 2px rgba(0,0,0,.7);
+      pointer-events: none;
+    }
+
+    /* rec badge */
+    #rec-b {
+      position: absolute; top: 10px; left: 10px; z-index: 8;
+      display: none; align-items: center; gap: 5px;
+      color: #ff3333; font-family: 'Caveat', cursive; font-size: 16px; font-weight: 600;
+    }
+    #rec-b.on { display: flex; }
+    .rdot { width: 8px; height: 8px; border-radius: 50%; background: #ff3333;
+            animation: blink 1s ease-in-out infinite; }
+    @keyframes blink { 0%,100%{opacity:1} 50%{opacity:.1} }
+    #rec-t { position: absolute; top: 10px; right: 10px; z-index: 8;
+             color: #fff; font-family: 'Caveat',cursive; font-size: 16px; display: none; }
+    #rec-t.on { display: block; }
+
+    #flash { position: absolute; inset: 0; background: #fff; opacity: 0; pointer-events: none; z-index: 9; }
+
+    .imp-ph {
+      position: absolute; inset: 0; z-index: 6;
+      display: none; flex-direction: column;
+      align-items: center; justify-content: center; gap: 14px;
+      background: #faf7f2; color: #7a6e60;
+      font-size: 21px; cursor: pointer; text-align: center; line-height: 1.5;
+    }
+    .imp-ph.on { display: flex; }
+    .imp-ph svg { width: 50px; height: 50px; opacity: .45; }
+
+    /* ── controls ───────────────────────────────────────────────────── */
+    .ctrl-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-around;
+      padding: 10px 16px 6px;
+      flex-shrink: 0;
+      position: relative;
+      z-index: 1;
+    }
+    .cbtn {
+      display: flex; flex-direction: column; align-items: center; gap: 4px;
+      background: none; border: none; cursor: pointer;
+      color: #7a6e60; font-family: 'Caveat', cursive; font-size: 16px;
+      min-width: 56px;
+    }
+    .cbtn svg { width: 28px; height: 28px; }
+    .cbtn:active { opacity: .45; }
+
+    /* shutter */
+    #shutter {
+      width: 72px; height: 72px; border-radius: 50%;
+      background: #221c14;
+      border: none;
+      box-shadow: 3px 3px 0 #8a7e6e, 0 0 0 5px #ede8df, 0 0 0 7px #c2b8a8;
+      cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+      transition: transform .08s, box-shadow .08s;
+      flex-shrink: 0;
+    }
+    #shutter::after {
+      content: '';
+      width: 52px; height: 52px; border-radius: 50%;
+      background: #faf6ef; border: 2px solid #c2b8a8;
+    }
+    #shutter:active { transform: scale(.91); box-shadow: 1px 1px 0 #8a7e6e, 0 0 0 5px #ede8df, 0 0 0 7px #c2b8a8; }
+    #shutter.rec-mode::after { background: #e83333; border-color: #c00; }
+
+    /* ── gallery strip ──────────────────────────────────────────────── */
+    .gallery {
+      display: flex; gap: 6px;
+      overflow-x: auto; padding: 6px 14px 12px;
+      flex-shrink: 0; scrollbar-width: none; min-height: 66px;
+    }
+    .gallery::-webkit-scrollbar { display: none; }
+    .thumb {
+      flex-shrink: 0; width: 54px; height: 54px; border-radius: 5px;
+      overflow: hidden; border: 2px solid #c2b8a8; cursor: pointer;
+      position: relative; transition: border-color .15s;
+    }
+    .thumb:active { border-color: #221c14; }
+    .thumb img, .thumb video { width: 100%; height: 100%; object-fit: cover; display: block; }
+    .play-ic { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
+               background: rgba(0,0,0,.28); color: #fff; font-size: 16px; }
+
+    /* ── modal ──────────────────────────────────────────────────────── */
+    #modal {
+      display: none; position: fixed; inset: 0; z-index: 300;
+      background: rgba(10,8,4,.92);
+      flex-direction: column; align-items: center; justify-content: center; gap: 16px;
+    }
+    #modal.on { display: flex; }
+    #mi, #mv {
+      max-width: 95vw; max-height: 75dvh; max-height: 75vh;
+      object-fit: contain; border-radius: 4px;
+    }
+    .macts { display: flex; gap: 12px; }
+    .mbtn {
+      font-family: 'Caveat', cursive; font-size: 17px;
+      padding: 8px 22px; border-radius: 16px; border: none; cursor: pointer;
+    }
+    .ms { background: #faf6ef; color: #221c14; }
+    .mc { background: rgba(255,255,255,.12); color: #fff; border: 1px solid rgba(255,255,255,.25); }
+
+    #file-in { display: none; }
+  </style>
+</head>
+<body>
+
+<div class="app">
+
+  <!-- header -->
+  <header>
+    <div class="site-title">vintacam</div>
+  </header>
+
+  <!-- mode tabs -->
+  <div class="tabs">
+    <button class="tab on"  data-m="photo">photo</button>
+    <button class="tab"     data-m="video">video</button>
+    <button class="tab"     data-m="import">import</button>
+  </div>
+
+  <!-- viewfinder -->
+  <div class="vf-wrap">
+    <div class="vf-box" id="vf">
+      <video id="live-vid" autoplay playsinline muted></video>
+      <canvas id="import-canvas"></canvas>
+      <video id="import-vid" playsinline controls></video>
+
+      <div class="vig"></div>
+      <div class="leak"></div>
+      <canvas id="grain"></canvas>
+
+      <div id="stamp"></div>
+      <div id="rec-b"><div class="rdot"></div>&nbsp;rec</div>
+      <div id="rec-t">00:00</div>
+
+      <div class="imp-ph" id="imp-ph">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+          <path d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1M16 12l-4-4-4 4M12 8v8"/>
+        </svg>
+        dotknij aby wybrać<br>zdjęcie lub film
+      </div>
+
+      <div id="flash" style="transition:opacity .05s;pointer-events:none"></div>
+    </div>
+  </div>
+
+  <!-- controls -->
+  <div class="ctrl-row">
+    <button class="cbtn" id="flip-btn">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <path d="M20 7H4M4 7L8 3M4 7l4 4"/>
+        <path d="M4 17h16M16 13l4 4M20 17l-4 4"/>
+      </svg>
+      flip
+    </button>
+
+    <button id="shutter"></button>
+
+    <button class="cbtn" id="gal-btn">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <rect x="3" y="3" width="18" height="18" rx="2"/>
+        <circle cx="8.5" cy="8.5" r="1.5"/>
+        <path d="M21 15l-5-5L5 21"/>
+      </svg>
+      gallery
+    </button>
+  </div>
+
+  <!-- gallery strip -->
+  <div class="gallery" id="gallery"></div>
+
+</div>
+
+<!-- modal viewer -->
+<div id="modal">
+  <img id="mi" style="display:none" alt="">
+  <video id="mv" style="display:none" controls playsinline></video>
+  <div class="macts">
+    <a id="m-save" class="mbtn ms" download>save ↓</a>
+    <button id="m-close" class="mbtn mc">close</button>
+  </div>
+</div>
+
+<input type="file" id="file-in" accept="image/*,video/*" multiple>
+
+<script src="https://cdn.jsdelivr.net/npm/exifr@7/dist/lite.umd.js"></script>
+<script>
+'use strict';
+
+/* ── elements ──────────────────────────────────────────────────────────────── */
+const liveVid   = document.getElementById('live-vid');
+const importCv  = document.getElementById('import-canvas');
+const importVEl = document.getElementById('import-vid');
+const grainCv   = document.getElementById('grain');
+const stampEl   = document.getElementById('stamp');
+const recB      = document.getElementById('rec-b');
+const recT      = document.getElementById('rec-t');
+const flashEl   = document.getElementById('flash');
+const impPh     = document.getElementById('imp-ph');
+const shutter   = document.getElementById('shutter');
+const flipBtn   = document.getElementById('flip-btn');
+const galBtn    = document.getElementById('gal-btn');
+const gallery   = document.getElementById('gallery');
+const fileIn    = document.getElementById('file-in');
+const modal     = document.getElementById('modal');
+const mi        = document.getElementById('mi');
+const mv        = document.getElementById('mv');
+const mSave     = document.getElementById('m-save');
+const mClose    = document.getElementById('m-close');
+const tabs      = document.querySelectorAll('.tab');
+
+/* ── state ─────────────────────────────────────────────────────────────────── */
+let mode    = 'photo';
+let facing  = 'environment';
+let stream  = null;
+let recorder = null;
+let chunks   = [];
+let recOn    = false;
+let recSecs  = 0;
+let recTick  = null;
+let items   = [];
+
+let grainCtx = grainCv.getContext('2d');
+let grainTick = null;
+
+/* ── helpers ───────────────────────────────────────────────────────────────── */
+const pad   = n => String(n).padStart(2, '0');
+const fmtDt = d => `${pad(d.getDate())}/${pad(d.getMonth()+1)}/${d.getFullYear()} `
+                  + `${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
+
+setInterval(() => { if (mode !== 'import') stampEl.textContent = fmtDt(new Date()); }, 1000);
+stampEl.textContent = fmtDt(new Date());
+
+/* ── grain ─────────────────────────────────────────────────────────────────── */
+function resizeGrain() {
+  grainCv.width  = grainCv.parentElement.offsetWidth;
+  grainCv.height = grainCv.parentElement.offsetHeight;
+}
+function drawGrain() {
+  const w = grainCv.width, h = grainCv.height;
+  if (!w || !h) return;
+  const img = grainCtx.createImageData(w, h);
+  const d = img.data;
+  for (let i = 0; i < d.length; i += 4) {
+    const v = Math.random() * 255 | 0;
+    d[i] = d[i+1] = d[i+2] = v; d[i+3] = 28;
+  }
+  grainCtx.putImageData(img, 0, 0);
+}
+function startGrain() { if (grainTick) return; resizeGrain(); grainTick = setInterval(drawGrain, 80); }
+function stopGrain()  { clearInterval(grainTick); grainTick = null; }
+window.addEventListener('resize', resizeGrain);
+
+/* ── camera ────────────────────────────────────────────────────────────────── */
+async function startCam() {
+  if (stream) { stream.getTracks().forEach(t => t.stop()); stream = null; }
+  try {
+    stream = await navigator.mediaDevices.getUserMedia({
+      video: { facingMode: facing, width: { ideal: 1920 }, height: { ideal: 1080 } },
+      audio: true
+    });
+  } catch {
+    try { stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: facing } }); }
+    catch (e) { alert('Brak dostępu do kamery: ' + e.message); return; }
+  }
+  liveVid.srcObject = stream;
+  liveVid.style.display = 'block';
+  liveVid.classList.toggle('mirror', facing === 'user');
+  importCv.style.display = 'none';
+  importVEl.style.display = 'none';
+  impPh.classList.remove('on');
+  stampEl.textContent = fmtDt(new Date());
+  startGrain();
+}
+
+/* ── vintage filter ────────────────────────────────────────────────────────── */
+function vintageFilter(ctx, w, h) {
+  const img = ctx.getImageData(0, 0, w, h);
+  const d = img.data;
+  for (let i = 0; i < d.length; i += 4) {
+    let r = d[i], g = d[i+1], b = d[i+2];
+    r = Math.min(255, r * 1.07 + 14);
+    g = Math.min(255, g * 1.01 + 5);
+    b = Math.max(0,   b * 0.84 - 8);
+    r = r * 0.87 + 24; g = g * 0.87 + 20; b = b * 0.85 + 16;
+    const n = (Math.random() - .5) * 24;
+    d[i]   = Math.min(255, Math.max(0, r + n));
+    d[i+1] = Math.min(255, Math.max(0, g + n * .75));
+    d[i+2] = Math.min(255, Math.max(0, b + n * .5));
+  }
+  ctx.putImageData(img, 0, 0);
+  const vig = ctx.createRadialGradient(w/2, h/2, h*.22, w/2, h/2, h*.9);
+  vig.addColorStop(0, 'rgba(0,0,0,0)');
+  vig.addColorStop(1, 'rgba(0,0,0,.52)');
+  ctx.fillStyle = vig; ctx.fillRect(0, 0, w, h);
+  const lk = ctx.createRadialGradient(0, 0, 0, w*.12, h*.06, w*.7);
+  lk.addColorStop(0, 'rgba(255,210,90,.17)');
+  lk.addColorStop(1, 'rgba(255,150,40,0)');
+  ctx.fillStyle = lk; ctx.fillRect(0, 0, w, h);
+}
+
+function stampOnCanvas(ctx, w, h, dt) {
+  const sz = Math.max(13, w * .032);
+  ctx.font = `bold ${sz}px "Courier New", monospace`;
+  ctx.shadowColor = 'rgba(245,166,35,.65)'; ctx.shadowBlur = 6;
+  ctx.fillStyle = '#f5a623';
+  ctx.fillText(fmtDt(dt), w - ctx.measureText(fmtDt(dt)).width - 12, h - 12);
+  ctx.shadowBlur = 0;
+}
+
+/* ── flash ─────────────────────────────────────────────────────────────────── */
+function doFlash() {
+  flashEl.style.opacity = '1';
+  setTimeout(() => { flashEl.style.opacity = '0'; }, 140);
+}
+
+/* ── take photo ────────────────────────────────────────────────────────────── */
+function takePhoto() {
+  doFlash();
+  const vw = liveVid.videoWidth  || 1280;
+  const vh = liveVid.videoHeight || 720;
+  const c  = document.createElement('canvas');
+  c.width = vw; c.height = vh;
+  const ctx = c.getContext('2d');
+  if (facing === 'user') { ctx.save(); ctx.translate(vw, 0); ctx.scale(-1, 1); }
+  ctx.drawImage(liveVid, 0, 0, vw, vh);
+  if (facing === 'user') ctx.restore();
+  vintageFilter(ctx, vw, vh);
+  stampOnCanvas(ctx, vw, vh, new Date());
+  c.toBlob(b => addItem({ type:'image', blob:b, date:new Date() }), 'image/jpeg', .93);
+}
+
+/* ── video recording ───────────────────────────────────────────────────────── */
+function startRec() {
+  if (!stream) return;
+  chunks = [];
+  let opts;
+  for (const mt of ['video/webm;codecs=vp9,opus','video/webm','video/mp4']) {
+    if (MediaRecorder.isTypeSupported(mt)) { opts = { mimeType: mt }; break; }
+  }
+  recorder = opts ? new MediaRecorder(stream, opts) : new MediaRecorder(stream);
+  recorder.ondataavailable = e => { if (e.data.size > 0) chunks.push(e.data); };
+  recorder.onstop = () => {
+    const blob = new Blob(chunks, { type: recorder.mimeType || 'video/webm' });
+    addItem({ type:'video', blob, date:new Date() });
+  };
+  recorder.start(200);
+  recOn = true; recSecs = 0;
+  shutter.classList.add('rec-mode');
+  recB.classList.add('on'); recT.classList.add('on');
+  recTick = setInterval(() => {
+    recSecs++;
+    recT.textContent = `${pad(Math.floor(recSecs/60))}:${pad(recSecs%60)}`;
+  }, 1000);
+}
+function stopRec() {
+  if (!recorder || !recOn) return;
+  recorder.stop(); recOn = false;
+  shutter.classList.remove('rec-mode');
+  recB.classList.remove('on'); recT.classList.remove('on');
+  clearInterval(recTick);
+}
+
+/* ── import ────────────────────────────────────────────────────────────────── */
+async function importFiles(files) {
+  for (const file of files) {
+    if (file.type.startsWith('image/')) {
+      let date = new Date(file.lastModified || Date.now());
+      try {
+        if (typeof exifr !== 'undefined') {
+          const ex = await exifr.parse(file, ['DateTimeOriginal','DateTime']);
+          if (ex?.DateTimeOriginal)      date = new Date(ex.DateTimeOriginal);
+          else if (ex?.DateTime)         date = new Date(ex.DateTime);
+        }
+      } catch {}
+      await new Promise(res => {
+        const reader = new FileReader();
+        reader.onload = e => {
+          const img = new Image();
+          img.onload = () => {
+            const c = document.createElement('canvas');
+            c.width = img.naturalWidth; c.height = img.naturalHeight;
+            const ctx = c.getContext('2d');
+            ctx.drawImage(img, 0, 0);
+            vintageFilter(ctx, c.width, c.height);
+            stampOnCanvas(ctx, c.width, c.height, date);
+            c.toBlob(blob => { addItem({ type:'image', blob, date }); res(); }, 'image/jpeg', .93);
+          };
+          img.src = e.target.result;
+        };
+        reader.readAsDataURL(file);
+      });
+    } else if (file.type.startsWith('video/')) {
+      addItem({ type:'video', blob: file, date: new Date(file.lastModified || Date.now()) });
+    }
+  }
+}
+
+/* ── gallery ───────────────────────────────────────────────────────────────── */
+function addItem(item) {
+  item.url = URL.createObjectURL(item.blob);
+  items.unshift(item);
+  renderGallery();
+}
+function renderGallery() {
+  gallery.innerHTML = '';
+  items.forEach(item => {
+    const div = document.createElement('div');
+    div.className = 'thumb';
+    if (item.type === 'image') {
+      const img = document.createElement('img');
+      img.src = item.url;
+      div.appendChild(img);
+    } else {
+      const vid = document.createElement('video');
+      vid.src = item.url; vid.muted = true;
+      div.appendChild(vid);
+      const ic = document.createElement('div');
+      ic.className = 'play-ic'; ic.textContent = '▶';
+      div.appendChild(ic);
+    }
+    div.addEventListener('click', () => openModal(item));
+    gallery.appendChild(div);
+  });
+}
+
+/* ── modal ─────────────────────────────────────────────────────────────────── */
+function openModal(item) {
+  modal.classList.add('on');
+  const ext = item.type === 'image' ? 'jpg' : 'webm';
+  mSave.href = item.url;
+  mSave.download = `vintacam_${Date.now()}.${ext}`;
+  if (item.type === 'image') {
+    mi.src = item.url; mi.style.display = 'block';
+    mv.style.display = 'none'; mv.pause();
+  } else {
+    mv.src = item.url; mv.style.display = 'block';
+    mi.style.display = 'none';
+  }
+}
+function closeModal() { modal.classList.remove('on'); mv.pause(); }
+
+/* ── mode switch ───────────────────────────────────────────────────────────── */
+async function setMode(m) {
+  mode = m;
+  tabs.forEach(t => t.classList.toggle('on', t.dataset.m === m));
+
+  if (m === 'import') {
+    if (stream) { stream.getTracks().forEach(t => t.stop()); stream = null; }
+    liveVid.style.display = 'none';
+    importCv.style.display = 'none';
+    importVEl.style.display = 'none';
+    impPh.classList.add('on');
+    stampEl.textContent = '';
+    flipBtn.style.opacity = '.3'; flipBtn.style.pointerEvents = 'none';
+    stopGrain();
+  } else {
+    flipBtn.style.opacity = ''; flipBtn.style.pointerEvents = '';
+    impPh.classList.remove('on');
+    await startCam();
+  }
+}
+
+/* ── events ────────────────────────────────────────────────────────────────── */
+tabs.forEach(t => t.addEventListener('click', () => setMode(t.dataset.m)));
+
+shutter.addEventListener('click', () => {
+  if (mode === 'photo')       takePhoto();
+  else if (mode === 'video')  recOn ? stopRec() : startRec();
+  else if (mode === 'import') fileIn.click();
+});
+
+flipBtn.addEventListener('click', async () => {
+  facing = facing === 'environment' ? 'user' : 'environment';
+  await startCam();
+});
+
+galBtn.addEventListener('click', () => { if (items.length) openModal(items[0]); });
+impPh.addEventListener('click', () => fileIn.click());
+fileIn.addEventListener('change', async e => {
+  if (e.target.files.length) await importFiles(Array.from(e.target.files));
+  e.target.value = '';
+});
+
+mClose.addEventListener('click', closeModal);
+modal.addEventListener('click', e => { if (e.target === modal) closeModal(); });
+
+/* ── boot ──────────────────────────────────────────────────────────────────── */
+setMode('photo');
+</script>
+</body>
+</html>
